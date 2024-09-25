@@ -1,8 +1,5 @@
 #include <fstream>
-#include <cassert>
-#include <iostream>
 #include <stdexcept>
-#include <sstream>
 #include "TXTFileReader.h"
 
 std::vector<std::vector<double>> TXTFileReader::read(const std::string& fileName) const {
@@ -11,54 +8,45 @@ std::vector<std::vector<double>> TXTFileReader::read(const std::string& fileName
         throw std::runtime_error("Error: Unable to open file " + fileName);
     }
 
-    assert(!fileName.empty());
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
+    }
 
     std::vector<std::vector<double>> matrixData;
-    if (inputFile.is_open()) {
-        int rowCount, columnCount;
-        inputFile >> rowCount >> columnCount;
 
-        if (rowCount <= 0 || columnCount <= 0) {
-            throw std::runtime_error("Error: Invalid row or column count in file " + fileName);
-        }
+    int rowCount = 0, columnCount = 0;
+    inputFile >> rowCount >> columnCount;
 
-        matrixData.resize(rowCount);
-
-        std::string line;
-        std::getline(inputFile, line);  // —читываем оставшуюс€ строку после rowCount и columnCount
-
-        for (int i = 0; i < rowCount; ++i) {
-            if (!std::getline(inputFile, line)) {
-                throw std::runtime_error("Error: Not enough rows in file " + fileName);
-            }
-
-            std::istringstream iss(line);
-            double value;
-            int col = 0;
-            std::vector<double> row;
-
-            while (iss >> value) {
-                if (col >= columnCount) {
-                    throw std::runtime_error("Error: Too many elements in row " + std::to_string(i + 1) + " in file " + fileName);
-                }
-                row.push_back(value);
-                col++;
-            }
-
-            if (col != columnCount) {
-                throw std::runtime_error("Error: Incorrect number of elements in row " + std::to_string(i + 1) + " column " + std::to_string(col + 1) + " in file " + fileName);
-            }
-
-            matrixData[i] = row;
-        }
-
-        // ƒополнительна€ проверка на лишние строки
-        if (std::getline(inputFile, line) && !line.empty()) {
-            throw std::runtime_error("Error: File " + fileName + " contains more data than expected.");
-        }
+    if (rowCount <= 0 || columnCount <= 0) {
+        throw std::runtime_error("Error: Invalid row or column count in file " + fileName);
     }
-    else {
-        std::cerr << "Failed to open file.\n";
+
+    matrixData.resize(rowCount);
+
+    // Skip the rest of the line after rowCount and columnCount
+    inputFile.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+    for (int i = 0; i < rowCount; ++i) {
+        std::vector<double> row;
+        double value;
+        int col = 0;
+
+        while (col < columnCount) {
+            if (!(inputFile >> value)) {
+                throw std::runtime_error("Error: Not enough data in row " + std::to_string(i + 1) + " in file " + fileName);
+            }
+
+            row.push_back(value);
+            col++;
+        }
+
+        matrixData[i] = row;
+    }
+
+    // Check for extra lines
+    std::string line;
+    if (std::getline(inputFile, line) && !line.empty()) {
+        throw std::runtime_error("Error: File " + fileName + " contains more data than expected.");
     }
 
     return matrixData;

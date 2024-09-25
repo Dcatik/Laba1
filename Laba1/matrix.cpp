@@ -1,43 +1,35 @@
 #include "matrix.h"
 #include <iostream>
 #include <fstream>
-#include <cassert>
+#include <stdexcept>
 
-
-// TODO: сделать поддержку isDeterminantValid и determinant
-// 
-// 
-// 
-// 
-// 
-// Constructors
-//
-
-// default constructor
+// Default constructor
 Matrix::Matrix()
     : rowCount(0), columnCount(0), matrixData(1, std::vector<double>(1, 0)),
     determinant(0), isDeterminantValid(false) {}
 
-// constractor with parameters
+// Parameterized constructor
 Matrix::Matrix(int rowCount, int columnCount)
     : rowCount(rowCount), columnCount(columnCount),
     matrixData(rowCount, std::vector<double>(columnCount, 0)),
     determinant(0), isDeterminantValid(false) {}
 
-// reading constructor
-Matrix::Matrix(const IReader& reader, const std::string& fileName) {
-    this->matrixData = reader.read(fileName);
-    this->rowCount = matrixData.size();
-    this->columnCount = matrixData.empty() ? 0 : matrixData[0].size();
-    this->determinant = 0;
-    this->isDeterminantValid = false;
+// Reading constructor
+Matrix::Matrix(const IReader& reader, const std::string& fileName)
+    : Matrix() {  // Delegate to default constructor
+    matrixData = reader.read(fileName);
+    rowCount = matrixData.size();
+    columnCount = rowCount > 0 ? matrixData[0].size() : 0;
+    isDeterminantValid = false;
 }
 
-// copying constructor
-Matrix::Matrix(const Matrix& other) : rowCount(other.rowCount), columnCount(other.columnCount)
-    , matrixData(other.matrixData), determinant(other.determinant), isDeterminantValid(other.isDeterminantValid) {}
+// Copy constructor
+Matrix::Matrix(const Matrix& other)
+    : rowCount(other.rowCount), columnCount(other.columnCount),
+    matrixData(other.matrixData), determinant(other.determinant),
+    isDeterminantValid(other.isDeterminantValid) {}
 
-// "=" overloading
+// Assignment operator overload
 Matrix& Matrix::operator=(const Matrix& other) {
     if (this != &other) {
         rowCount = other.rowCount;
@@ -49,139 +41,124 @@ Matrix& Matrix::operator=(const Matrix& other) {
     return *this;
 }
 
-// Get data from matrix
-std::vector<std::vector<double>> Matrix::getMatrixData() const {
-    return matrixData;
-}
+// Get row count
+int Matrix::GetRowCount() { return rowCount; }
 
-int Matrix::GetRowCount() const { return rowCount; }
+// Get column count
+int Matrix::GetColumnCount() { return columnCount; }
 
-int Matrix::GetColumnCount() const { return columnCount; }
-
-void Matrix::PrintMatrix() const {
-    for (int i = 0; i < rowCount; ++i) {
-        for (int j = 0; j < columnCount; ++j) {
-            std::cout << matrixData[i][j] << " ";
+// Print matrix
+void Matrix::PrintMatrix() {
+    for (const auto& row : matrixData) {
+        for (const auto& elem : row) {
+            std::cout << elem << " ";
         }
         std::cout << "\n";
     }
 }
 
-// Operations
-
-Matrix Matrix::multiplyByScalar(double scalar) const {
+// Scalar multiplication
+Matrix Matrix::MultiplyByScalar(double scalar) {
     Matrix result(*this);
-    for (int i = 0; i < result.rowCount; ++i) {
-        for (int j = 0; j < result.columnCount; ++j) {
-            result.matrixData[i][j] *= scalar;
+    for (auto& row : result.matrixData) {
+        for (auto& elem : row) {
+            elem *= scalar;
         }
     }
     result.isDeterminantValid = false;
-
     return result;
 }
 
-Matrix Matrix::MultiplyByScalar(double scalar) const {
-    return this->multiplyByScalar(scalar);
-}
-
-Matrix Matrix::Transpose() const {
+// Transpose matrix
+Matrix Matrix::Transpose() {
     Matrix result(columnCount, rowCount);
-    for (int i = 0; i < rowCount; ++i)
-        for (int j = 0; j < columnCount; ++j)
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
             result.matrixData[j][i] = matrixData[i][j];
-    return result;
-}
-
-Matrix Matrix::add(const Matrix& other) const {
-    // Проверка на совпадение размеров матриц
-    if (this->rowCount != other.rowCount || this->columnCount != other.columnCount) {
-        throw std::invalid_argument("Ошибка: матрицы должны быть одинакового размера для сложения.");
-    }
-
-    // Создаем новую матрицу для хранения результата
-    Matrix result(this->rowCount, this->columnCount);
-
-    // Складываем соответствующие элементы
-    for (int i = 0; i < this->rowCount; ++i) {
-        for (int j = 0; j < this->columnCount; ++j) {
-            result.matrixData[i][j] = this->matrixData[i][j] + other.matrixData[i][j];
         }
     }
-
+    result.isDeterminantValid = false;
     return result;
 }
-Matrix Matrix::Add(const Matrix& other) const {
-    return this->add(other);
+
+// Addition of matrices
+Matrix Matrix::Add(const Matrix& other) {
+    if (rowCount != other.rowCount || columnCount != other.columnCount) {
+        throw std::invalid_argument("Error: Matrices must be of the same size for addition.");
+    }
+
+    Matrix result(rowCount, columnCount);
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            result.matrixData[i][j] = matrixData[i][j] + other.matrixData[i][j];
+        }
+    }
+    result.isDeterminantValid = false;
+    return result;
 }
 
-Matrix Matrix::multiply(const Matrix& other) const {
-    // Проверяем, что умножение возможно
-    if (this->columnCount != other.rowCount) {
+// Multiplication of matrices
+Matrix Matrix::Multiply(const Matrix& other) {
+    if (columnCount != other.rowCount) {
         throw std::invalid_argument("Matrices cannot be multiplied: column count of the first matrix does not match row count of the second matrix.");
     }
 
-    // Создаём новую матрицу для хранения результата
-    Matrix result(this->rowCount, other.columnCount);
-
-    // Выполняем умножение матриц
-    for (int i = 0; i < this->rowCount; ++i) {
+    Matrix result(rowCount, other.columnCount);
+    for (int i = 0; i < rowCount; ++i) {
         for (int j = 0; j < other.columnCount; ++j) {
-            result.matrixData[i][j] = 0; // Инициализируем элемент результирующей матрицы
-            for (int k = 0; k < this->columnCount; ++k) {
-                result.matrixData[i][j] += this->matrixData[i][k] * other.matrixData[k][j];
+            result.matrixData[i][j] = 0; // Initialize element
+            for (int k = 0; k < columnCount; ++k) {
+                result.matrixData[i][j] += matrixData[i][k] * other.matrixData[k][j];
             }
         }
     }
-
+    result.isDeterminantValid = false;
     return result;
 }
 
-Matrix Matrix::Multiply(const Matrix& other) const {
-    return this->multiply(other);
-}
-
-
+// Update determinant
 void Matrix::updateDeterminant() {
-    determinant = calculateDeterminant(this->matrixData, this->columnCount); // Вычисляем детерминант
-    isDeterminantValid = true; // Устанавливаем флаг как действительный
+    determinant = calculateDeterminant(matrixData, columnCount);
+    isDeterminantValid = true;
 }
 
-// Метод для получения детерминанта
-double Matrix::GetDeterminant() const{
+// Get determinant
+double Matrix::GetDeterminant() {
     if (!isDeterminantValid) {
-        this->updateDeterminant(); // Если детерминант не действителен, обновляем его
+        updateDeterminant();
     }
-    return determinant; // Возвращаем действительное значение
+    return determinant;
 }
 
-double Matrix::calculateDeterminant(const std::vector<std::vector<double>>& matrix, int size) const {
-    // Создаём копию матрицы для модификаций
+
+void Matrix::swap(std::vector<double>& a, std::vector<double>& b) {
+    std::vector<double> temp = a;
+    a = b;
+    b = temp;
+}
+// Calculate determinant using Gaussian elimination
+double Matrix::calculateDeterminant(const std::vector<std::vector<double>>& matrix, int size) {
     std::vector<std::vector<double>> mat = matrix;
-    double det = 1.0; // Начальное значение детерминанта
-    int swaps = 0;    // Количество перестановок строк
+    double det = 1.0;
+    int swaps = 0;
 
     for (int i = 0; i < size; ++i) {
-        // Находим максимальный элемент в колонке i для стабильности метода
         int maxRow = i;
         for (int k = i + 1; k < size; ++k) {
-            if (fabs(mat[k][i]) > fabs(mat[maxRow][i])) {
+            if (std::fabs(mat[k][i]) > std::fabs(mat[maxRow][i])) {
                 maxRow = k;
             }
         }
 
-        // Если максимальный элемент 0, детерминант равен 0
         if (mat[maxRow][i] == 0) {
-            return 0.0;
+            return 0.0;  // Determinant is zero
         }
 
-        // Перестановка строк
         if (i != maxRow) {
-            std::swap(mat[i], mat[maxRow]);
+            swap(mat[i], mat[maxRow]);
             ++swaps;
         }
 
-        // Приводим матрицу к верхнетреугольной форме
         for (int k = i + 1; k < size; ++k) {
             double factor = mat[k][i] / mat[i][i];
             for (int j = i; j < size; ++j) {
@@ -190,92 +167,91 @@ double Matrix::calculateDeterminant(const std::vector<std::vector<double>>& matr
         }
     }
 
-    // Детерминант - это произведение элементов на главной диагонали
     for (int i = 0; i < size; ++i) {
         det *= mat[i][i];
     }
 
-    // Если было нечетное количество перестановок, меняем знак детерминанта
+    // Проверка на epsilon
+    const double epsilon = 1e-9; // Можно изменить по необходимости
+    if (std::fabs(det) < epsilon) {
+        return 0.0;  // Определитель близок к нулю
+    }
+
+    // Упрощенный вывод знака детерминанта
     if (swaps % 2 != 0) {
-        det = -det;
+        det = -det; // Меняем знак при нечетном числе перестановок
     }
 
     return det;
 }
 
+std::vector<std::vector<double>> Matrix::GetMinor(int row, int col) {
+    std::vector<std::vector<double>> minorMatrix(this->rowCount - 1, std::vector<double>(this->columnCount - 1));
+    int di = 0;
+    for (int i = 0; i < rowCount - 1; i++) {
+        if (i == row) di = 1;
+        int dj = 0;
+        for (int j = 0; j < columnCount - 1; j++) {
+            if (j == col) dj = 1;
+            minorMatrix[i][j] = matrixData[i + di][j + dj];
+        }
+    }
+    return minorMatrix;
+}
 
-
-Matrix Matrix::Inverse() const {
+// Обновлённый метод Inverse
+Matrix Matrix::Inverse() {
     double det = GetDeterminant();
-    if (det == 0) {
+
+    const double epsilon = 1e-9; // можно подкорректировать в зависимости от точности вычислений
+    if (std::abs(det) < epsilon) {
         throw std::runtime_error("Cannot calculate inverse of matrix with determinant 0.");
     }
 
-    int n = rowCount; // Предполагаем, что матрица квадратная
-    Matrix augmentedMatrix(n, 2 * n); // Расширенная матрица
-    // Заполнение расширенной матрицы
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            augmentedMatrix.matrixData[i][j] = matrixData[i][j]; // Исходная матрица
-            if (i == j) {
-                augmentedMatrix.matrixData[i][j + n] = 1; // Единичная матрица
-            }
-            else {
-                augmentedMatrix.matrixData[i][j + n] = 0;
-            }
+    Matrix result(rowCount, columnCount);
+
+    // Вычисление матрицы алгебраических дополнений (миноров)
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            // Получение минора
+            auto minorMatrix = GetMinor(i, j);
+            // Определитель минора
+            double minorDet = calculateDeterminant(minorMatrix, rowCount - 1);
+            // Применяем знак (чередование по строкам и столбцам)
+            result.matrixData[i][j] = ((i + j) % 2 == 1 ? -minorDet : minorDet);
         }
     }
 
-    // Прямой ход
-    for (int i = 0; i < n; ++i) {
-        // Поиск максимального элемента в текущем столбце
-        double maxEl = fabs(augmentedMatrix.matrixData[i][i]);
-        int maxRow = i;
-        for (int k = i + 1; k < n; ++k) {
-            if (fabs(augmentedMatrix.matrixData[k][i]) > maxEl) {
-                maxEl = fabs(augmentedMatrix.matrixData[k][i]);
-                maxRow = k;
-            }
-        }
+    // Транспонируем матрицу дополнений
+    result = result.Transpose();
 
-        // Перестановка строк
-        std::swap(augmentedMatrix.matrixData[maxRow], augmentedMatrix.matrixData[i]);
-
-        // Нормализация текущей строки
-        double divisor = augmentedMatrix.matrixData[i][i];
-        for (int j = 0; j < 2 * n; ++j) {
-            augmentedMatrix.matrixData[i][j] /= divisor;
-        }
-
-        // Обнуление остальных строк
-        for (int k = 0; k < n; ++k) {
-            if (k != i) {
-                double factor = augmentedMatrix.matrixData[k][i];
-                for (int j = 0; j < 2 * n; ++j) {
-                    augmentedMatrix.matrixData[k][j] -= factor * augmentedMatrix.matrixData[i][j];
-                }
-            }
+    // Делим каждую ячейку на определитель исходной матрицы
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            result.matrixData[i][j] /= det;
         }
     }
 
-    // Создаем обратную матрицу
-    Matrix inverseMatrix(n, n);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            inverseMatrix.matrixData[i][j] = augmentedMatrix.matrixData[i][j + n]; // Записываем правую половину
-        }
-    }
-
-    return inverseMatrix;
+    return result;
 }
 
-
-
-void Matrix::WriteToFile(const IWriter& writer, const std::string& fileName) const {
-    assert(!fileName.empty());
+// Write matrix to file
+void Matrix::WriteToFile(const IWriter& writer, const std::string& fileName) {
     writer.write(fileName, matrixData);
 }
 
-Matrix::~Matrix() {
-    // Ну он тут не особо то и нужен, спасибо векторам <3
+// Destructor
+Matrix::~Matrix() {}
+
+Matrix Matrix::operator*(const Matrix& other) {
+    return this->Multiply(other);
 }
+
+template<typename T>
+Matrix Matrix::operator*(T scalar) {
+    return this->MultiplyByScalar(scalar);
+}
+
+template Matrix Matrix::operator*<int>(int);
+template Matrix Matrix::operator*<float>(float);
+template Matrix Matrix::operator*<double>(double);

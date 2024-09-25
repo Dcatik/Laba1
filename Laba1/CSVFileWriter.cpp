@@ -1,6 +1,5 @@
-#include <iostream>
 #include <fstream>
-#include <cassert>
+#include <stdexcept>
 #include "CSVFileWriter.h"
 
 void CSVFileWriter::write(const std::string& fileName, const std::vector<std::vector<double>>& matrixData) const {
@@ -8,29 +7,29 @@ void CSVFileWriter::write(const std::string& fileName, const std::vector<std::ve
     if (!outputFile.is_open()) {
         throw std::runtime_error("Error: Unable to write to file " + fileName);
     }
-    assert(!fileName.empty());
 
-    if (outputFile.is_open()) {
-        // Записываем количество строк и столбцов в первую строку
-        size_t numRows = matrixData.size();
-        size_t numCols = matrixData.empty() ? 0 : matrixData[0].size();
-        outputFile << numRows << ";" << numCols << "\n";  // Используем точку с запятой
-
-        // Записываем содержимое матрицы
-        for (const auto& row : matrixData) {
-            for (size_t i = 0; i < row.size(); ++i) {
-                outputFile << row[i];
-                if (i < row.size() - 1) {
-                    outputFile << ";";  // Разделяем элементы внутри строки точкой с запятой
-                }
-            }
-            outputFile << "\n";  // Переход на новую строку для каждой строки матрицы
-        }
-        outputFile.close();
-        assert(outputFile.good());
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
     }
-    else {
-        std::cerr << "Error opening file: " << fileName << "\n";
+
+    // Записываем количество строк и столбцов в первую строку
+    int numRows = static_cast<int>(matrixData.size());
+    int numCols = (numRows > 0) ? static_cast<int>(matrixData[0].size()) : 0;
+    outputFile << numRows << ";" << numCols << "\n";  // Используем точку с запятой
+
+    // Записываем содержимое матрицы
+    for (int i = 0; i < numRows; ++i) {
+        for (int j = 0; j < numCols; ++j) {
+            outputFile << matrixData[i][j];
+            if (j < numCols - 1) {
+                outputFile << ";";  // Разделяем элементы внутри строки точкой с запятой
+            }
+        }
+        outputFile << "\n";  // Переход на новую строку для каждой строки матрицы
+    }
+
+    outputFile.close();
+    if (!outputFile.good()) {
+        throw std::runtime_error("Error: Failed to write all data to file " + fileName);
     }
 }
-
