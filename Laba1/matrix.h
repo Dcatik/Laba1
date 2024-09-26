@@ -12,7 +12,7 @@ private:
     double determinant;
     bool isDeterminantValid;
 
-    std::vector<std::vector<double>> GetMinor(int row, int col);
+    std::vector<std::vector<double>> getMinor(int row, int col);
     double calculateDeterminant(const std::vector<std::vector<double>>& matrix, int size);
     void updateDeterminant();
 

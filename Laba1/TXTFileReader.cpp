@@ -3,13 +3,13 @@
 #include "TXTFileReader.h"
 
 std::vector<std::vector<double>> TXTFileReader::read(const std::string& fileName) const {
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
+    }
+
     std::ifstream inputFile(fileName);
     if (!inputFile.is_open()) {
         throw std::runtime_error("Error: Unable to open file " + fileName);
-    }
-
-    if (fileName.empty()) {
-        throw std::runtime_error("Error: File name is empty.");
     }
 
     std::vector<std::vector<double>> matrixData;
@@ -23,8 +23,7 @@ std::vector<std::vector<double>> TXTFileReader::read(const std::string& fileName
 
     matrixData.resize(rowCount);
 
-    // Skip the rest of the line after rowCount and columnCount
-    inputFile.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    inputFile.ignore(1000000, '\n');
 
     for (int i = 0; i < rowCount; ++i) {
         std::vector<double> row;
