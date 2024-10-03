@@ -19,6 +19,7 @@ int main() {
         std::cout << "Matrix A:" << std::endl;
         matrixA.PrintMatrix();
 
+
         // Чтение матрицы B из текстового файла
         Matrix matrixB(txtReader, "matrix_b.txt");
         std::cout << "\nMatrix B:" << std::endl;
@@ -71,12 +72,11 @@ int main() {
 
         // Запись матриц A и D в файлы
         matrixA.WriteToFile(txtWriter, "matrix_A_written.txt");
-        matrixC.WriteToFile(csvWriter, "matrix_D.csv");
 
-        // Вычисление обратной матрицы для A
-        std::cout << "\nInverse of Matrix A:" << std::endl;
-        Matrix inverseA = matrixA.Inverse();
-        inverseA.PrintMatrix();
+        // Вычисление обратной матрицы для D
+        std::cout << "\nInverse of Matrix D:" << std::endl;
+        Matrix inverseD = matrixD.Inverse();
+        inverseD.PrintMatrix();
 
         // Операции с матрицей E
         std::cout << "\nMatrix E: " << std::endl;

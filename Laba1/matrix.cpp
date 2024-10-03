@@ -46,9 +46,9 @@ void Matrix::PrintMatrix() {
 
 Matrix Matrix::MultiplyByScalar(double scalar) {
     Matrix result(*this);
-    for (auto& row : result.matrixData) {
-        for (auto& elem : row) {
-            elem *= scalar;
+    for (int i = 0; i < result.matrixData.size(); ++i) {
+        for (int j = 0; j < result.matrixData[i].size(); ++j) {
+            result.matrixData[i][j] *= scalar;
         }
     }
     result.isDeterminantValid = false;
@@ -99,7 +99,7 @@ void Matrix::updateDeterminant() {
     determinant = calculateDeterminant(matrixData, columnCount);
     isDeterminantValid = true;
 }
-double Matrix::GetDeterminant() {
+double Matrix::GetDeterminant(){
     if (!isDeterminantValid) {
         updateDeterminant();
     }
