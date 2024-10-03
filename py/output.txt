@@ -1,0 +1,667 @@
+// CSVFileReader.cpp
+
+#include <fstream>
+#include <stdexcept>
+#include "CSVFileReader.h"
+
+std::vector<std::vector<double>> CSVFileReader::read(const std::string& fileName) const {
+    std::ifstream inputFile(fileName);
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
+    }
+
+    if (!inputFile.is_open()) {
+        throw std::runtime_error("Error: Failed to open file " + fileName);
+    }
+
+    std::vector<std::vector<double>> matrixData;
+    std::string line;
+
+    // ×òåíèå ïåðâîé ñòðîêè ñ êîëè÷åñòâîì ñòðîê è ñòîëáöîâ
+    if (std::getline(inputFile, line)) {
+        int rowCount = 0;
+        int columnCount = 0;
+        std::string item;
+        size_t pos = 0;
+
+        // ×òåíèå êîëè÷åñòâà ñòðîê
+        pos = line.find(';');
+        if (pos != std::string::npos) {
+            rowCount = std::stoi(line.substr(0, pos));
+            line.erase(0, pos + 1);  // Óäàëÿåì ïðî÷èòàííîå êîëè÷åñòâî ñòðîê
+        }
+
+        // ×òåíèå êîëè÷åñòâà ñòîëáöîâ
+        columnCount = std::stoi(line);
+
+        if (rowCount <= 0 || columnCount <= 0) {
+            throw std::runtime_error("Error: Invalid row or column count in file " + fileName);
+        }
+
+        // Ðåçåðâèðóåì ìåñòî äëÿ äàííûõ ìàòðèöû
+        matrixData.resize(rowCount);
+
+        // ×òåíèå ñòðîê äàííûõ ìàòðèöû
+        for (int i = 0; i < rowCount && std::getline(inputFile, line); ++i) {
+            int col = 0;
+            size_t start = 0;
+            size_t end;
+
+            while ((end = line.find(';', start)) != std::string::npos) {
+                if (col >= columnCount) {
+                    throw std::runtime_error("Error: Too many elements in row " + std::to_string(i + 1) + " in file " + fileName);
+                }
+
+                // Èçâëå÷åíèå çíà÷åíèÿ
+                item = line.substr(start, end - start);
+                start = end + 1;
+
+                // Ïðåîáðàçóåì ñòðîêó â double
+                try {
+                    matrixData[i].push_back(std::stod(item));
+                }
+                catch (const std::invalid_argument& e) {
+                    throw std::runtime_error("Error: Invalid number at row " + std::to_string(i + 1) + " column " + std::to_string(col + 1) + " in file " + fileName);
+                }
+
+                col++;
+            }
+
+            // Ïðîâåðêà íà ïîñëåäíåå çíà÷åíèå â ñòðîêå (ïîñëå ïîñëåäíåé òî÷êè ñ çàïÿòîé)
+            if (start < line.size()) {
+                item = line.substr(start);
+                if (col >= columnCount) {
+                    throw std::runtime_error("Error: Too many elements in row " + std::to_string(i + 1) + " in file " + fileName);
+                }
+                try {
+                    matrixData[i].push_back(std::stod(item));
+                }
+                catch (const std::invalid_argument& e) {
+                    throw std::runtime_error("Error: Invalid number at row " + std::to_string(i + 1) + " column " + std::to_string(col + 1) + " in file " + fileName);
+                }
+                col++;
+            }
+
+            if (col != columnCount) {
+                throw std::runtime_error("Error: Incorrect number of elements in row " + std::to_string(i + 1) + " column " + std::to_string(col + 1) + " in file " + fileName);
+            }
+        }
+
+        // Äîïîëíèòåëüíàÿ ïðîâåðêà íà ëèøíèå ñòðîêè
+        if (std::getline(inputFile, line) && !line.empty()) {
+            throw std::runtime_error("Error: File " + fileName + " contains more data than expected.");
+        }
+    }
+
+    inputFile.close();
+    return matrixData;
+}
+
+
+// CSVFileReader.h
+
+#pragma once
+#include "IReader.h"
+
+class CSVFileReader : public IReader {
+public:
+    std::vector<std::vector<double>> read(const std::string& fileName) const override;
+};
+
+// CSVFileWriter.cpp
+
+#include <fstream>
+#include <stdexcept>
+#include "CSVFileWriter.h"
+
+void CSVFileWriter::write(const std::string& fileName, const std::vector<std::vector<double>>& matrixData) const {
+    std::ofstream outputFile(fileName);
+    if (!outputFile.is_open()) {
+        throw std::runtime_error("Error: Unable to write to file " + fileName);
+    }
+
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
+    }
+
+    // Çàïèñûâàåì êîëè÷åñòâî ñòðîê è ñòîëáöîâ â ïåðâóþ ñòðîêó
+    int numRows = static_cast<int>(matrixData.size());
+    int numCols = (numRows > 0) ? static_cast<int>(matrixData[0].size()) : 0;
+    outputFile << numRows << ";" << numCols << "\n";  // Èñïîëüçóåì òî÷êó ñ çàïÿòîé
+
+    // Çàïèñûâàåì ñîäåðæèìîå ìàòðèöû
+    for (int i = 0; i < numRows; ++i) {
+        for (int j = 0; j < numCols; ++j) {
+            outputFile << matrixData[i][j];
+            if (j < numCols - 1) {
+                outputFile << ";";  // Ðàçäåëÿåì ýëåìåíòû âíóòðè ñòðîêè òî÷êîé ñ çàïÿòîé
+            }
+        }
+        outputFile << "\n";  // Ïåðåõîä íà íîâóþ ñòðîêó äëÿ êàæäîé ñòðîêè ìàòðèöû
+    }
+
+    outputFile.close();
+    if (!outputFile.good()) {
+        throw std::runtime_error("Error: Failed to write all data to file " + fileName);
+    }
+}
+
+
+// CSVFileWriter.h
+
+#pragma once
+#include "IWriter.h"
+
+class CSVFileWriter : public IWriter {
+public:
+    void write(const std::string& fileName, const std::vector<std::vector<double>>& matrixData) const override;
+};
+
+
+// IReader.h
+
+#pragma once
+#include <vector>
+#include <string>
+
+class IReader {
+public:
+    virtual std::vector<std::vector<double>> read(const std::string& fileName) const = 0;
+    virtual ~IReader() = default;
+};
+
+// IWriter.h
+
+#pragma once
+#include <vector>
+#include <string>
+
+class IWriter {
+public:
+    virtual void write(const std::string& fileName, const std::vector<std::vector<double>>& matrixData) const = 0;
+    virtual ~IWriter() = default;
+};
+
+// main.cpp
+
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include "matrix.h"
+#include "CSVFileReader.h"
+#include "CSVFileWriter.h"
+#include "TXTFileReader.h"
+#include "TXTFileWriter.h"
+
+int main() {
+    /* 
+    try {
+        TXTFileReader txtReader;
+        CSVFileWriter csvWriter;
+        CSVFileReader csvReader;
+        std::vector<Matrix> matrices;
+        for (int size = 5; size <= 25; size += 5) {
+            for (int i = 1; i <= 10; ++i) {
+                std::string fileName = "matrixes/matrix_" + std::to_string(size) + "x" + std::to_string(size) + "_" + std::to_string(i) + ".txt";
+                matrices.emplace_back(txtReader, fileName);
+                std::cout << "\nMatrix " << i << " (" << size << "x" << size << "):" << std::endl << std::endl;
+                matrices.back().PrintMatrix();
+                std::cout << "Determinant: " << matrices.back().GetDeterminant() << std::endl;
+            }
+        }
+        if (matrices.size() >= 2) {
+            std::cout << "\nDeterminant of Matrix 1: " << matrices[0].GetDeterminant() << std::endl;
+            std::cout << "\nDeterminant of Matrix 2: " << matrices[1].GetDeterminant() << std::endl;
+            std::cout << "\nInverse of Matrix 1:" << std::endl;
+            Matrix inverseA = matrices[0].Inverse();
+            inverseA.PrintMatrix();
+        }
+
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+    }
+
+    */
+    return 0;
+}
+
+
+// matrix.cpp
+
+#include "matrix.h"
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+
+Matrix::Matrix()
+    : rowCount(0), columnCount(0), matrixData(1, std::vector<double>(1, 0)),
+    determinant(0), isDeterminantValid(false) {
+}
+Matrix::Matrix(int rowCount, int columnCount)
+    : rowCount(rowCount), columnCount(columnCount),
+    matrixData(rowCount, std::vector<double>(columnCount, 0)),
+    determinant(0), isDeterminantValid(false) {
+}
+Matrix::Matrix(const IReader& reader, const std::string& fileName)
+    : Matrix() {  // Delegate to default constructor
+    matrixData = reader.read(fileName);
+    rowCount = matrixData.size();
+    columnCount = rowCount > 0 ? matrixData[0].size() : 0;
+    isDeterminantValid = false;
+}
+Matrix::Matrix(const Matrix& other)
+    : rowCount(other.rowCount), columnCount(other.columnCount),
+    matrixData(other.matrixData), determinant(other.determinant),
+    isDeterminantValid(other.isDeterminantValid) {
+}
+Matrix& Matrix::operator=(const Matrix& other) {
+    if (this != &other) {
+        rowCount = other.rowCount;
+        columnCount = other.columnCount;
+        matrixData = other.matrixData;
+        determinant = other.determinant;
+        isDeterminantValid = other.isDeterminantValid;
+    }
+    return *this;
+}
+
+int Matrix::GetRowCount() { return rowCount; }
+int Matrix::GetColumnCount() { return columnCount; }
+
+void Matrix::PrintMatrix() {
+    for (const auto& row : matrixData) {
+        for (const auto& elem : row) {
+            std::cout << elem << " ";
+        }
+        std::cout << "\n";
+    }
+}
+
+Matrix Matrix::MultiplyByScalar(double scalar) {
+    Matrix result(*this);
+    for (auto& row : result.matrixData) {
+        for (auto& elem : row) {
+            elem *= scalar;
+        }
+    }
+    result.isDeterminantValid = false;
+    return result;
+}
+Matrix Matrix::Transpose() {
+    Matrix result(columnCount, rowCount);
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            result.matrixData[j][i] = matrixData[i][j];
+        }
+    }
+    result.isDeterminantValid = false;
+    return result;
+}
+Matrix Matrix::Add(const Matrix& other) {
+    if (rowCount != other.rowCount || columnCount != other.columnCount) {
+        throw std::invalid_argument("Error: Matrices must be of the same size for addition.");
+    }
+
+    Matrix result(rowCount, columnCount);
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            result.matrixData[i][j] = matrixData[i][j] + other.matrixData[i][j];
+        }
+    }
+    result.isDeterminantValid = false;
+    return result;
+}
+Matrix Matrix::Multiply(const Matrix& other) {
+    if (columnCount != other.rowCount) {
+        throw std::invalid_argument("Matrices cannot be multiplied: column count of the first matrix does not match row count of the second matrix.");
+    }
+
+    Matrix result(rowCount, other.columnCount);
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < other.columnCount; ++j) {
+            result.matrixData[i][j] = 0; // Initialize element
+            for (int k = 0; k < columnCount; ++k) {
+                result.matrixData[i][j] += matrixData[i][k] * other.matrixData[k][j];
+            }
+        }
+    }
+    result.isDeterminantValid = false;
+    return result;
+}
+void Matrix::updateDeterminant() {
+    determinant = calculateDeterminant(matrixData, columnCount);
+    isDeterminantValid = true;
+}
+double Matrix::GetDeterminant() {
+    if (!isDeterminantValid) {
+        updateDeterminant();
+    }
+    return determinant;
+}
+
+void Matrix::swap(std::vector<double>& a, std::vector<double>& b) {
+    std::vector<double> temp = a;
+    a = b;
+    b = temp;
+}
+double Matrix::calculateDeterminant(const std::vector<std::vector<double>>& matrix, int size) {
+    std::vector<std::vector<double>> mat = matrix;
+    double det = 1.0;
+    int swaps = 0;
+
+    for (int i = 0; i < size; ++i) {
+        int maxRow = i;
+        for (int k = i + 1; k < size; ++k) {
+            if (std::fabs(mat[k][i]) > std::fabs(mat[maxRow][i])) {
+                maxRow = k;
+            }
+        }
+        if (mat[maxRow][i] == 0) {
+            return 0.0;
+        }
+        if (i != maxRow) {
+            swap(mat[i], mat[maxRow]);
+            ++swaps;
+        }
+        for (int k = i + 1; k < size; ++k) {
+            double factor = mat[k][i] / mat[i][i];
+            for (int j = i; j < size; ++j) {
+                mat[k][j] -= factor * mat[i][j];
+            }
+        }
+    }
+    for (int i = 0; i < size; ++i) {
+        det *= mat[i][i];
+    }
+
+    const double epsilon = 1e-9;
+    if (std::fabs(det) < epsilon) {
+        return 0.0;
+    }
+
+    if (swaps % 2 != 0) {
+        det = -det;
+    }
+
+    return det;
+}
+
+std::vector<std::vector<double>> Matrix::getMinor(int row, int col) {
+    std::vector<std::vector<double>> minorMatrix(this->rowCount - 1, std::vector<double>(this->columnCount - 1));
+    int di = 0;
+    for (int i = 0; i < rowCount - 1; i++) {
+        if (i == row) di = 1;
+        int dj = 0;
+        for (int j = 0; j < columnCount - 1; j++) {
+            if (j == col) dj = 1;
+            minorMatrix[i][j] = matrixData[i + di][j + dj];
+        }
+    }
+    return minorMatrix;
+}
+
+Matrix Matrix::Inverse() {
+    double det = GetDeterminant();
+
+    const double epsilon = 1e-9;
+    if (std::abs(det) < epsilon) {
+        throw std::runtime_error("Cannot calculate inverse of matrix with determinant 0.");
+    }
+
+    Matrix result(rowCount, columnCount);
+
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            auto minorMatrix = getMinor(i, j);
+            double minorDet = calculateDeterminant(minorMatrix, rowCount - 1);
+            result.matrixData[i][j] = ((i + j) % 2 == 1 ? -minorDet : minorDet);
+        }
+    }
+    result = result.Transpose();
+
+    for (int i = 0; i < rowCount; ++i) {
+        for (int j = 0; j < columnCount; ++j) {
+            result.matrixData[i][j] /= det;
+        }
+    }
+
+    return result;
+}
+
+void Matrix::WriteToFile(const IWriter& writer, const std::string& fileName) {
+    writer.write(fileName, matrixData);
+}
+Matrix::~Matrix() {}
+
+Matrix Matrix::operator*(const Matrix& other) {
+    return this->Multiply(other);
+}
+template<typename T>
+Matrix Matrix::operator*(T scalar) {
+    return this->MultiplyByScalar(scalar);
+}
+template Matrix Matrix::operator*<int>(int);
+template Matrix Matrix::operator*<float>(float);
+template Matrix Matrix::operator*<double>(double);
+
+// matrix.h
+
+#pragma once
+#include <vector>
+#include <string>
+#include "IReader.h"
+#include "IWriter.h"
+
+class Matrix {
+private:
+    int rowCount;
+    int columnCount;
+    std::vector<std::vector<double>> matrixData;
+    double determinant;
+    bool isDeterminantValid;
+
+    std::vector<std::vector<double>> getMinor(int row, int col);
+    double calculateDeterminant(const std::vector<std::vector<double>>& matrix, int size);
+    void updateDeterminant();
+
+    void swap(std::vector<double>& a, std::vector<double>& b);
+
+public:
+    Matrix();
+    Matrix(int rowCount, int columnCount);
+    Matrix(const IReader& reader, const std::string& fileName);
+    Matrix(const Matrix& other);
+    Matrix& operator=(const Matrix& other);
+
+    int GetRowCount();
+    int GetColumnCount();
+    void PrintMatrix();
+
+    Matrix Add(const Matrix& other);
+    Matrix Multiply(const Matrix& other);
+    Matrix MultiplyByScalar(double scalar);
+    Matrix Transpose();
+    double GetDeterminant();
+    Matrix Inverse();
+    void WriteToFile(const IWriter& writer, const std::string& fileName);
+
+    ~Matrix();
+
+    template<typename T>
+    Matrix operator*(T scalar);
+    Matrix operator*(const Matrix& other);
+};
+
+
+// TXTFileReader.cpp
+
+#include <fstream>
+#include <stdexcept>
+#include "TXTFileReader.h"
+
+std::vector<std::vector<double>> TXTFileReader::read(const std::string& fileName) const {
+    if (fileName.empty()) {
+        throw std::runtime_error("Error: File name is empty.");
+    }
+    std::ifstream inputFile(fileName);
+    if (!inputFile.is_open()) {
+        throw std::runtime_error("Error: Unable to open file " + fileName);
+    }
+
+    std::vector<std::vector<double>> matrixData;
+    int rowCount = 0, columnCount = 0;
+    inputFile >> rowCount >> columnCount;
+
+    if (rowCount <= 0 || columnCount <= 0) {
+        throw std::runtime_error("Error: Invalid row or column count in file " + fileName);
+    }
+    matrixData.resize(rowCount);
+    for (int i = 0; i < rowCount; ++i) {
+        std::vector<double> row;
+        double value;
+        int col = 0;
+        while (col < columnCount) {
+            if (!(inputFile >> value)) {
+                throw std::runtime_error("Error: Not enough data in row " + std::to_string(i + 1) + " in file " + fileName);
+            }
+            row.push_back(value);
+            col++;
+        }
+        matrixData[i] = row;
+    }
+    std::string line;
+    if (std::getline(inputFile, line) && !line.empty()) {
+        throw std::runtime_error("Error: File " + fileName + " contains more data than expected.");
+    }
+
+    return matrixData;
+}
+
+
+// TXTFileReader.h
+
+#pragma once
+#include "IReader.h"
+
+class TXTFileReader : public IReader {
+public:
+    std::vector<std::vector<double>> read(const std::string& fileName) const override;
+};
+
+// TXTFileWriter.cpp
+
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include "matrix.h"
+#include "CSVFileReader.h"
+#include "CSVFileWriter.h"
+#include "TXTFileReader.h"
+#include "TXTFileWriter.h"
+
+void runTests() {
+    try {
+        // Òåñòèðîâàíèå ñîçäàíèÿ ìàòðèöû
+        Matrix matrix1(2, 2);
+        matrix1 = Matrix({ {1.0, 2.0}, {3.0, 4.0} });
+        std::cout << "Òåñò 1: Ñîçäàíèå ìàòðèöû\n";
+        matrix1.PrintMatrix();
+
+        // Òåñòèðîâàíèå îïðåäåëèòåëÿ
+        double det = matrix1.GetDeterminant();
+        std::cout << "Òåñò 2: Îïðåäåëèòåëü ìàòðèöû = " << det << "\n";
+        if (det != -2.0) {
+            throw std::runtime_error("Îøèáêà: Íåâåðíîå çíà÷åíèå îïðåäåëèòåëÿ.");
+        }
+
+        // Òåñòèðîâàíèå èíâåðñèè ìàòðèöû
+        Matrix inverseMatrix = matrix1.Inverse();
+        std::cout << "Òåñò 3: Îáðàòíàÿ ìàòðèöà\n";
+        inverseMatrix.PrintMatrix();
+
+        // Ïðîâåðêà, ÷òî ïðîèçâåäåíèå ìàòðèöû è å¸ îáðàòíîé ìàòðèöû äàåò åäèíè÷íóþ ìàòðèöó
+        Matrix identity = matrix1 * inverseMatrix;
+        std::cout << "Òåñò 4: Ïðîèçâåäåíèå ìàòðèöû è å¸ îáðàòíîé ìàòðèöû\n";
+        identity.PrintMatrix();
+        if (identity.GetRowCount() != 2 || identity.GetColumnCount() != 2 ||
+            identity.GetDeterminant() != 1.0) {
+            throw std::runtime_error("Îøèáêà: Íåâåðíàÿ åäèíè÷íàÿ ìàòðèöà.");
+        }
+
+        // Òåñòèðîâàíèå ñëîæåíèÿ ìàòðèö
+        Matrix matrix2(2, 2);
+        matrix2 = Matrix({ {5.0, 6.0}, {7.0, 8.0} });
+        Matrix sum = matrix1.Add(matrix2);
+        std::cout << "Òåñò 5: Ñëîæåíèå ìàòðèö\n";
+        sum.PrintMatrix();  // Îæèäàåòñÿ {{6, 8}, {10, 12}}
+
+        // Òåñòèðîâàíèå èñêëþ÷åíèÿ ïðè íåñîîòâåòñòâèè ðàçìåðîâ ìàòðèö
+        try {
+            Matrix matrix3(3, 3);
+            matrix3 = Matrix({ {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0} });
+            matrix1.Add(matrix3); // Äîëæíî âûáðîñèòü èñêëþ÷åíèå
+        }
+        catch (const std::invalid_argument& e) {
+            std::cout << "Òåñò 6: Îáðàáîòêà îøèáêè ñëîæåíèÿ ìàòðèö ñ ðàçíûìè ðàçìåðàìè: " << e.what() << "\n";
+        }
+
+    }
+    catch (const std::runtime_error& e) {
+        std::cerr << "Îøèáêà: " << e.what() << std::endl;
+    }
+}
+
+int main() {
+    runTests();
+
+    // Îñòàëüíîé êîä äëÿ ðàáîòû ñ ôàéëàìè
+    /*
+    try {
+        TXTFileReader txtReader;
+        CSVFileWriter csvWriter;
+        CSVFileReader csvReader;
+        std::vector<Matrix> matrices;
+        for (int size = 5; size <= 25; size += 5) {
+            for (int i = 1; i <= 10; ++i) {
+                std::string fileName = "matrixes/matrix_" + std::to_string(size) + "x" + std::to_string(size) + "_" + std::to_string(i) + ".txt";
+                matrices.emplace_back(txtReader, fileName);
+                std::cout << "\nMatrix " << i << " (" << size << "x" << size << "):" << std::endl << std::endl;
+                matrices.back().PrintMatrix();
+                std::cout << "Determinant: " << matrices.back().GetDeterminant() << std::endl;
+            }
+        }
+        if (matrices.size() >= 2) {
+            std::cout << "\nDeterminant of Matrix 1: " << matrices[0].GetDeterminant() << std::endl;
+            std::cout << "\nDeterminant of Matrix 2: " << matrices[1].GetDeterminant() << std::endl;
+            std::cout << "\nInverse of Matrix 1:" << std::endl;
+            Matrix inverseA = matrices[0].Inverse();
+            inverseA.PrintMatrix();
+        }
+
+    } catch (const std::runtime_error& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+    }
+    */
+
+    return 0;
+}
+
+
+// TXTFileWriter.h
+
+#pragma once
+#include "IWriter.h"
+
+class TXTFileWriter : public IWriter {
+public:
+    void write(const std::string& fileName, const std::vector<std::vector<double>>& matrixData) const override;
+};
+

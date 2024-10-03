@@ -5,15 +5,12 @@
 
 Matrix::Matrix()
     : rowCount(0), columnCount(0), matrixData(1, std::vector<double>(1, 0)),
-    determinant(0), isDeterminantValid(false) {
-}
+    determinant(0), isDeterminantValid(false) {}
 Matrix::Matrix(int rowCount, int columnCount)
     : rowCount(rowCount), columnCount(columnCount),
     matrixData(rowCount, std::vector<double>(columnCount, 0)),
-    determinant(0), isDeterminantValid(false) {
-}
-Matrix::Matrix(const IReader& reader, const std::string& fileName)
-    : Matrix() {  // Delegate to default constructor
+    determinant(0), isDeterminantValid(false) {}
+Matrix::Matrix(const IReader& reader, const std::string& fileName) : Matrix() { 
     matrixData = reader.read(fileName);
     rowCount = matrixData.size();
     columnCount = rowCount > 0 ? matrixData[0].size() : 0;
@@ -39,9 +36,9 @@ int Matrix::GetRowCount() { return rowCount; }
 int Matrix::GetColumnCount() { return columnCount; }
 
 void Matrix::PrintMatrix() {
-    for (const auto& row : matrixData) {
-        for (const auto& elem : row) {
-            std::cout << elem << " ";
+    for (int i = 0; i < matrixData.size(); ++i) {
+        for (int j = 0; j < matrixData[i].size(); ++j) {
+            std::cout << matrixData[i][j] << " ";
         }
         std::cout << "\n";
     }
@@ -178,7 +175,7 @@ Matrix Matrix::Inverse() {
         throw std::runtime_error("Cannot calculate inverse of matrix with determinant 0.");
     }
 
-    Matrix result(rowCount, columnCount);
+    Matrix result(this->rowCount, this->columnCount);
 
     for (int i = 0; i < rowCount; ++i) {
         for (int j = 0; j < columnCount; ++j) {
